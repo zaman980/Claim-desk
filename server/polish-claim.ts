@@ -2,6 +2,14 @@ export const MAX_INPUT_LENGTH = 600;
 
 export const GEMINI_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
 
+interface GeminiResponse {
+  candidates?: {
+    content?: {
+      parts?: { text?: string }[];
+    };
+  }[];
+}
+
 export async function handlePolishRequest(
   request: Request,
   apiKey: string | undefined
@@ -21,16 +29,15 @@ export async function handlePolishRequest(
     );
   }
 
-  let body: { description?: unknown; claimType?: unknown };
+  let body: { description?: string; claimType?: string };
   try {
-    body = await request.json();
+    body = (await request.json()) as { description?: string; claimType?: string };
   } catch {
     return json({ error: "Invalid request body" }, 400);
   }
 
-  const description =
-    typeof body.description === "string" ? body.description.trim() : "";
-  const claimType = typeof body.claimType === "string" ? body.claimType : "auto";
+  const description = body.description?.trim() ?? "";
+  const claimType = body.claimType ?? "auto";
 
   if (!description) {
     return json({ error: "Please write a brief description first." }, 400);
@@ -88,7 +95,7 @@ export async function handlePolishRequest(
       return json({ error: "The AI assistant is temporarily unavailable." }, 502);
     }
 
-    const data = await geminiResponse.json();
+    const data = (await geminiResponse.json()) as GeminiResponse;
     const polished: string | undefined = data?.candidates?.[0]?.content?.parts?.[0]?.text
       ?.trim()
       ?.replace(/^[\"']|[\"']$/g, "");
